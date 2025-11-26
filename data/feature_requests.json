@@ -1,0 +1,24 @@
+{
+  "requests": [
+    {
+      "id": "fr_1001",
+      "title": "Host calendar sync (iCal)",
+      "description": "Allow syncing with Google/Apple calendar.",
+      "by": "nesta.naija@gmail.com",
+      "priority": "medium",
+      "status": "pending",
+      "createdAt": 1760548733866,
+      "updatedAt": 1760548733866
+    },
+    {
+      "id": "fr_1002",
+      "title": "Bulk photo uploader",
+      "description": "Drag & drop multi-image upload with reordering.",
+      "by": "johnagbike@yahoo.com",
+      "priority": "high",
+      "status": "planned",
+      "createdAt": 1760635133866,
+      "updatedAt": 1760635133866
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "users": [
+    {
+      "id": "u123",
+      "name": "Jane Admin",
+      "email": "jane@example.com",
+      "phone": "0801 234 5678",
+      "admin": true,
+      "disabled": false,
+      "createdAt": "2025-01-01T00:00:00Z",
+      "role": "partner",
+      "updatedAt": "2025-10-11T00:57:31.272Z"
+    },
+    {
+      "id": "u456",
+      "name": "John Guest",
+      "email": "john@example.com",
+      "phone": "0809 876 5432",
+      "admin": false,
+      "disabled": false,
+      "createdAt": "2025-01-02T00:00:00Z",
+      "role": "partner",
+      "updatedAt": "2025-10-11T00:57:35.561Z"
+    }
+  ]
+}

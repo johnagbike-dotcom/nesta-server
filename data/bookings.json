@@ -1,0 +1,78 @@
+{
+  "bookings": [
+    {
+      "id": "bk_1757288752973",
+      "created": "2025-09-07T23:45:52.973Z",
+      "email": "nesta.naija@gmail.com",
+      "title": "Room in Ikeja GRA",
+      "nights": 1,
+      "total": 20000,
+      "provider": "paystack",
+      "reference": "ps_4xehddv9",
+      "status": "cancelled",
+      "gateway": "success",
+      "updatedAt": "2025-10-19T13:54:49.046Z"
+    },
+    {
+      "id": "bk_1757245924967",
+      "listingId": "3OPsPF5cohZJwGdr1uNr",
+      "title": "Room in Ikeja GRA",
+      "nights": 1,
+      "total": 20000,
+      "email": "nesta.naija@gmail.com",
+      "provider": "paystack",
+      "reference": "T375597661887246",
+      "status": "cancelled",
+      "meta": {
+        "provider": "paystack",
+        "reference": "T375597661887246",
+        "verifiedAt": "2025-09-07T11:52:04.967Z",
+        "gatewayStatus": "unverified",
+        "reason": "no_secret"
+      },
+      "createdAt": "2025-09-07T11:52:04.967Z",
+      "gateway": "success",
+      "updatedAt": "2025-10-18T20:00:52.289Z"
+    },
+    {
+      "id": "bk_1757250066504",
+      "listingId": "3OPsPF5cohZjWGdr1uNr",
+      "title": "Room in Ikeja GRA",
+      "nights": 1,
+      "total": 20000,
+      "email": "nesta.naija@gmail.com",
+      "reference": "ps_1757250059665",
+      "provider": "paystack",
+      "status": "cancelled",
+      "createdAt": "2025-09-07T13:01:06.504Z",
+      "gateway": "success",
+      "updatedAt": "2025-11-03T19:44:58.506Z"
+    },
+    {
+      "id": "bk_1757285784275",
+      "created": "2025-09-07T22:56:24.275Z",
+      "email": "guest+15711@example.com",
+      "title": "Room in Ikeja GRA",
+      "nights": 1,
+      "total": 20000,
+      "provider": "paystack",
+      "reference": "ps_y521w1l7",
+      "status": "refunded",
+      "gateway": "—",
+      "updatedAt": "2025-10-17T21:54:29.488Z"
+    },
+    {
+      "id": "bk_1757286676512",
+      "created": "2025-09-07T23:11:16.512Z",
+      "email": "nesta.naija@gmail.com",
+      "title": "Room in Ikeja GRA",
+      "nights": 1,
+      "total": 20000,
+      "provider": "paystack",
+      "reference": "ps_1757286669190",
+      "status": "confirmed",
+      "gateway": "—",
+      "updatedAt": "2025-09-27T10:23:26.524Z"
+    }
+  ]
+}

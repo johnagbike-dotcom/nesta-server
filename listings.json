@@ -1,0 +1,12 @@
+[
+  {
+    "id": "1758757266775",
+    "title": "Luxury Apartment",
+    "city": "Lagos",
+    "area": "Victoria Island",
+    "price": 25000,
+    "featured": true,
+    "hostEmail": "host@example.com",
+    "createdAt": "2025-09-24T23:41:06.775Z"
+  }
+]

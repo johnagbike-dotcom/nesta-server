@@ -1,0 +1,62 @@
+[
+  {
+    "id": "bk_1757373386281",
+    "createdAt": "2025-09-08T23:16:26.281Z",
+    "email": "test@example.com",
+    "title": "Room in Ikeja GRA",
+    "nights": 1,
+    "amountN": 20000,
+    "provider": "paystack",
+    "reference": "ps_6w3nnr",
+    "status": "pending",
+    "gateway": "—"
+  },
+  {
+    "id": "bk_1757373383381",
+    "createdAt": "2025-09-08T23:16:23.381Z",
+    "email": "test@example.com",
+    "title": "Room in Ikeja GRA",
+    "nights": 1,
+    "amountN": 20000,
+    "provider": "paystack",
+    "reference": "ps_sz9z42",
+    "status": "confirmed",
+    "gateway": "—"
+  },
+  {
+    "id": "bk_1757373381516",
+    "createdAt": "2025-09-08T23:16:21.516Z",
+    "email": "test@example.com",
+    "title": "Room in Ikeja GRA",
+    "nights": 1,
+    "amountN": 20000,
+    "provider": "paystack",
+    "reference": "ps_ziv5qt",
+    "status": "pending",
+    "gateway": "—"
+  },
+  {
+    "id": "bk_1757372984846",
+    "createdAt": "2025-09-08T23:09:44.846Z",
+    "email": "test@example.com",
+    "title": "Room in Ikeja GRA",
+    "nights": 1,
+    "amountN": 20000,
+    "provider": "paystack",
+    "reference": "ps_5qeoxv",
+    "status": "pending",
+    "gateway": "—"
+  },
+  {
+    "id": "bk_1757372954608",
+    "createdAt": "2025-09-08T23:09:14.608Z",
+    "email": "test@example.com",
+    "title": "Room in Ikeja GRA",
+    "nights": 1,
+    "amountN": 20000,
+    "provider": "paystack",
+    "reference": "ps_h5c9ja",
+    "status": "cancelled",
+    "gateway": "—"
+  }
+]

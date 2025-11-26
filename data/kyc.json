@@ -1,0 +1,68 @@
+{
+  "requests": [
+    {
+      "id": "kyc_1762300309214_76040",
+      "userId": "zvqG82in9LbNHiNWFZRA6fWreR73",
+      "name": "John",
+      "email": "nesta.naija@gmail.com",
+      "phoneNumber": "+2348138588058",
+      "govIdType": "NIN",
+      "govIdNumber": "40081946055",
+      "docUrl": "",
+      "address": "23  Bongo Street, New GRA, Makurdi, Benue State.",
+      "status": "pending",
+      "submittedAt": "2025-11-04T23:51:49.214Z",
+      "reviewedAt": "",
+      "history": [
+        {
+          "at": "2025-11-04T23:51:49.214Z",
+          "status": "pending",
+          "note": "Submitted"
+        }
+      ]
+    },
+    {
+      "id": "K001",
+      "userId": "U123",
+      "name": "John Guest",
+      "email": "john@example.com",
+      "submittedAt": "2025-09-26T22:45:34.237Z",
+      "status": "approved",
+      "notes": "",
+      "updatedAt": "2025-09-27T00:43:21.781Z",
+      "reviewedAt": "2025-10-19T14:00:54.872Z",
+      "history": [
+        {
+          "at": "2025-10-18T21:37:50.899Z",
+          "status": "rejected",
+          "note": "",
+          "by": "admin"
+        },
+        {
+          "at": "2025-10-18T21:37:59.209Z",
+          "status": "pending",
+          "note": "",
+          "by": "admin"
+        },
+        {
+          "at": "2025-10-18T21:38:07.532Z",
+          "status": "approved",
+          "note": "",
+          "by": "admin"
+        },
+        {
+          "at": "2025-10-19T14:00:50.281Z",
+          "status": "rejected",
+          "note": "",
+          "by": "admin"
+        },
+        {
+          "at": "2025-10-19T14:00:54.872Z",
+          "status": "approved",
+          "note": "",
+          "by": "admin"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "requests": [
+    {
+      "id": "FR1",
+      "title": "Enable Paystack Integration",
+      "description": "Allow guests to pay with Paystack gateway.",
+      "by": "john@example.com",
+      "priority": "high",
+      "status": "planned",
+      "createdAt": "2025-09-27T12:00:00Z",
+      "updatedAt": "2025-10-18T21:20:16.452Z"
+    }
+  ]
+}
