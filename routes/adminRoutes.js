@@ -140,6 +140,95 @@ const paginate = (arr, page = 1, limit = 10) => {
   const start = (p - 1) * l;
   return { items: arr.slice(start, start + l), page: p, limit: l, total: arr.length };
 };
+// ---------- Firestore-aware loaders (users, listings, bookings) ----------
+async function loadUsers() {
+  // 1) JSON first
+  let rows = readJSON(USERS_FILE, { users: [] }).users || [];
+
+  // 2) If empty and Firestore available, hydrate from Firestore
+  if ((!rows || rows.length === 0) && fdb) {
+    try {
+      const snap = await fdb.collection("users").get();
+      rows = snap.docs.map((doc) => {
+        const d = doc.data() || {};
+        return {
+          id: doc.id,
+          email: d.email || "",
+          name: d.name || d.displayName || "",
+          displayName: d.displayName || d.name || "",
+          role: (d.role || "guest").toLowerCase(),
+          disabled: !!d.disabled,
+          createdAt: d.createdAt || d.created_at || null,
+          lastLoginAt: d.lastLoginAt || null,
+          updatedAt: d.updatedAt || null,
+        };
+      });
+      writeJSON(USERS_FILE, { users: rows });
+    } catch (e) {
+      console.error("loadUsers Firestore fallback failed:", e);
+    }
+  }
+  return rows;
+}
+
+async function loadListings() {
+  let rows = readJSON(LISTINGS_FILE, { listings: [] }).listings || [];
+
+  if ((!rows || rows.length === 0) && fdb) {
+    try {
+      const snap = await fdb.collection("listings").get();
+      rows = snap.docs.map((doc) => {
+        const d = doc.data() || {};
+        return {
+          id: doc.id,
+          title: d.title || "",
+          city: d.city || "",
+          area: d.area || "",
+          type: d.type || d.listingType || "",
+          pricePerNight: d.pricePerNight || d.nightlyRate || 0,
+          status: (d.status || "active").toLowerCase(),
+          featured: !!d.featured,
+          grade: d.grade || "Standard",
+          gradeNote: d.gradeNote || "",
+          updatedAt: d.updatedAt || null,
+          createdAt: d.createdAt || null,
+        };
+      });
+      writeJSON(LISTINGS_FILE, { listings: rows });
+    } catch (e) {
+      console.error("loadListings Firestore fallback failed:", e);
+    }
+  }
+  return rows;
+}
+
+async function loadBookings() {
+  let rows = readJSON(BOOKINGS_FILE, { bookings: [] }).bookings || [];
+
+  if ((!rows || rows.length === 0) && fdb) {
+    try {
+      const names = ["Bookings", "bookings"];
+      for (const name of names) {
+        const snap = await fdb.collection(name).get();
+        if (!snap.empty) {
+          rows = snap.docs.map((doc) =>
+            // re-use normaliser from bookings router if you like,
+            // or keep it simple here:
+            ({
+              id: doc.id,
+              ...(doc.data() || {}),
+            })
+          );
+          break;
+        }
+      }
+      writeJSON(BOOKINGS_FILE, { bookings: rows });
+    } catch (e) {
+      console.error("loadBookings Firestore fallback failed:", e);
+    }
+  }
+  return rows;
+}
 
 /* ─────────────────────────── Data files ────────────────────────── */
 const USERS_FILE     = path.join(DATA_DIR, "users.json");            // { users: [] }
@@ -167,12 +256,14 @@ ensureFile(SETTINGS_FILE, {
 });
 
 /* ─────────────────────────── Overview ──────────────────────────── */
-router.get("/overview", (_req, res) => {
+router.get("/overview", async (_req, res) => {
   try {
-    const users    = readJSON(USERS_FILE, { users: [] }).users || [];
-    const listings = readJSON(LISTINGS_FILE, { listings: [] }).listings || [];
-    const bookings = readJSON(BOOKINGS_FILE, { bookings: [] }).bookings || [];
-    const kycReqs  = readJSON(KYC_FILE, { requests: [] }).requests || [];
+    const [users, listings, bookings, kycReqs] = await Promise.all([
+      loadUsers(),
+      loadListings(),
+      loadBookings(),
+      Promise.resolve(readJSON(KYC_FILE, { requests: [] }).requests || []),
+    ]);
 
     const txCounts = bookings.reduce(
       (acc, b) => {
@@ -186,9 +277,17 @@ router.get("/overview", (_req, res) => {
 
     res.json({
       users: { total: users.length },
-      listings: { active: listings.filter((l) => (l.status || "active") === "active").length },
+      listings: {
+        active: listings.filter(
+          (l) => (l.status || "active") === "active"
+        ).length,
+      },
       transactions: { total: bookings.length, counts: txCounts },
-      kyc: { pending: kycReqs.filter((r) => (r.status || "pending") === "pending").length },
+      kyc: {
+        pending: kycReqs.filter(
+          (r) => (r.status || "pending") === "pending"
+        ).length,
+      },
     });
   } catch (e) {
     console.error(e);
@@ -196,23 +295,30 @@ router.get("/overview", (_req, res) => {
   }
 });
 
+
 /* ─────────────────────────── Users ─────────────────────────────── */
-router.get("/users", (req, res) => {
+router.get("/users", async (req, res) => {
   try {
-    const { q = "", role = "all", status = "all", page = 1, limit = 10 } = req.query;
-    let rows = readJSON(USERS_FILE, { users: [] }).users || [];
+    const { q = "", role = "all", status = "all", page = 1, limit = 10 } =
+      req.query;
+
+    let rows = await loadUsers();
 
     const kw = String(q).trim().toLowerCase();
     if (kw) {
       rows = rows.filter((u) =>
-        `${u.name || ""} ${u.displayName || ""} ${u.email || ""} ${u.phone || ""}`
+        `${u.name || ""} ${u.displayName || ""} ${u.email || ""} ${
+          u.phone || ""
+        }`
           .toLowerCase()
           .includes(kw)
       );
     }
     if (role !== "all") {
       rows = rows.filter(
-        (u) => String(u.role || "guest").toLowerCase() === String(role).toLowerCase()
+        (u) =>
+          String(u.role || "guest").toLowerCase() ===
+          String(role).toLowerCase()
       );
     }
     if (status !== "all") {
@@ -227,6 +333,7 @@ router.get("/users", (req, res) => {
     res.status(500).json({ message: "Failed to load users" });
   }
 });
+
 // --- USERS: CSV export -------------------------------------------------
 router.get("/users/export.csv", (req, res) => {
   try {
@@ -520,24 +627,42 @@ router.get("/bookings/export.csv", (req, res) => {
 });
 
 /* ───────────────────────── Listings ───────────────────────────── */
-router.get("/listings", (req, res) => {
+router.get("/listings", async (req, res) => {
   try {
-    const { q = "", city = "", status = "all", grade = "all", featured = "all", page = 1, limit = 12 } = req.query;
+    const {
+      q = "",
+      city = "",
+      status = "all",
+      grade = "all",
+      featured = "all",
+      page = 1,
+      limit = 12,
+    } = req.query;
 
-    let rows = readJSON(LISTINGS_FILE, { listings: [] }).listings || [];
+    let rows = await loadListings();
 
     const kw = String(q).trim().toLowerCase();
     if (kw) {
       rows = rows.filter((l) =>
-        `${l.title || ""} ${l.city || ""} ${l.area || ""} ${l.type || ""}`.toLowerCase().includes(kw)
+        `${l.title || ""} ${l.city || ""} ${l.area || ""} ${
+          l.type || ""
+        }`.toLowerCase().includes(kw)
       );
     }
     if (city) {
       const c = String(city).toLowerCase();
       rows = rows.filter((l) => (l.city || "").toLowerCase() === c);
     }
-    if (status !== "all") rows = rows.filter((l) => String(l.status || "active").toLowerCase() === String(status).toLowerCase());
-    if (grade !== "all") rows = rows.filter((l) => (l.grade || "Standard") === grade);
+    if (status !== "all") {
+      rows = rows.filter(
+        (l) =>
+          String(l.status || "active").toLowerCase() ===
+          String(status).toLowerCase()
+      );
+    }
+    if (grade !== "all") {
+      rows = rows.filter((l) => (l.grade || "Standard") === grade);
+    }
     if (featured !== "all") {
       const want = featured === "true";
       rows = rows.filter((l) => Boolean(l.featured) === want);
@@ -556,6 +681,7 @@ router.get("/listings", (req, res) => {
     res.status(500).json({ message: "Failed to load listings" });
   }
 });
+
 router.get("/listings/export.csv", (req, res) => {
   try {
     const range = normalizeRange(req.query);
