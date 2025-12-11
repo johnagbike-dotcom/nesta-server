@@ -1,0 +1,5 @@
+{
+  "maintenanceMode": false,
+  "requireKycForNewHosts": true,
+  "featuredCarouselLimit": 10
+}

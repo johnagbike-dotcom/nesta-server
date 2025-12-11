@@ -1,0 +1,36 @@
+{
+  "listings": [
+    {
+      "id": "175875",
+      "title": "Luxury Apartment",
+      "city": "Lagos",
+      "area": "Victoria Island",
+      "pricePerNight": 20000,
+      "status": "inactive",
+      "featured": false,
+      "ownerId": "user123",
+      "updatedAt": "2025-12-10T22:47:06.756Z",
+      "qualityNote": "",
+      "qualityGrade": "A",
+      "qualityUpdatedAt": "2025-10-19T13:46:19.218Z",
+      "grade": "Premium",
+      "gradeNote": ""
+    },
+    {
+      "id": "175876",
+      "title": "3-Bedroom Flat",
+      "city": "Abuja",
+      "area": "Gwarinpa",
+      "pricePerNight": 25000,
+      "status": "inactive",
+      "featured": false,
+      "ownerId": "user456",
+      "updatedAt": "2025-12-10T22:46:51.725Z",
+      "grade": "Elite",
+      "gradeNote": "",
+      "qualityNote": "",
+      "qualityGrade": "A",
+      "qualityUpdatedAt": "2025-10-19T13:25:19.455Z"
+    }
+  ]
+}
