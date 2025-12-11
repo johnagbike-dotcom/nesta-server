@@ -32,14 +32,30 @@ import crypto from "crypto";
 // App
 // ----------------------------------------------------------------------------
 const app = express();
-
 // CORS
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://nesta-client.onrender.com",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin(origin, callback) {
+      // allow non-browser tools (Postman, curl – no origin header)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // optional: log unexpected origins for debugging
+      console.warn("Blocked by CORS:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
+
 
 // IMPORTANT: Webhooks need raw body for signature verification.
 // Attach raw-body parsers BEFORE global express.json():
