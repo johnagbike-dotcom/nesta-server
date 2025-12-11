@@ -1,11 +1,13 @@
 // server.js (ESM) — Nesta API + Paystack/Flutterwave webhooks
+
 import "dotenv/config";
 import express from "express";
-import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import morgan from "morgan";
+import crypto from "crypto";
 
+// Routers
 import webhooksRouter from "./routes/webhooks.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import usersRouter from "./routes/users.js";
@@ -25,37 +27,44 @@ try {
 }
 const db = admin.firestore();
 
-// ---- Node utils
-import crypto from "crypto";
-
 // ----------------------------------------------------------------------------
 // App
 // ----------------------------------------------------------------------------
 const app = express();
+app.set("trust proxy", 1);
 
-// CORS
-const allowedOrigins = [
+// ---- CORS (manual, no cors package) ----
+const allowedOrigins = new Set([
   "http://localhost:3000",
+  "https://localhost:3000",
   "https://nesta-client.onrender.com",
-];
+]);
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      // allow REST tools / curl with no origin
-      if (!origin) return callback(null, true);
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+  if (origin && allowedOrigins.has(origin)) {
+    // reflect the calling origin, not localhost
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+  }
 
-      // not allowed
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-  })
-);
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
 
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 // IMPORTANT: Webhooks need raw body for signature verification.
 // Attach raw-body parsers BEFORE global express.json():
@@ -98,9 +107,6 @@ app.use("/api", onboardingRoutes);
 app.use("/api/bookings", bookingsRouter); // includes GET /:id, PATCH /:id/status, POST /:id/refund, GET /:id/contact
 app.use("/api/transactions", bookingsRouter); // alias used by some UIs
 
-// ❌ REMOVED: this was crashing in ESM and is no longer needed
-// app.use("/api/bookings/contacts", require("./routes/bookingContacts"));
-
 // Health
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
@@ -109,7 +115,7 @@ app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-// Static (optional; safe to leave)
+// Static (optional)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, "public")));
