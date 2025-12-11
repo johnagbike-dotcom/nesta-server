@@ -1,17 +1,17 @@
 // server.js (ESM) — Nesta API + Paystack/Flutterwave webhooks
-import 'dotenv/config';
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import morgan from "morgan";
-import webhooksRouter from './routes/webhooks.js';
 
+import webhooksRouter from "./routes/webhooks.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import usersRouter from "./routes/users.js";
 import hostRoutes from "./routes/hostRoutes.js";
 import listingsRouter from "./routes/listings.js";
-import bookingsRouter from "./routes/bookings.js"; // <-- NEW
+import bookingsRouter from "./routes/bookings.js"; // includes /:id/contact
 import kycRoutes from "./routes/kycRoutes.js";
 import onboardingRoutes from "./routes/onboardingRoutes.js";
 
@@ -20,7 +20,8 @@ import admin from "firebase-admin";
 try {
   admin.app();
 } catch {
-  admin.initializeApp(); // uses GOOGLE_APPLICATION_CREDENTIALS / ADC
+  // Uses GOOGLE_APPLICATION_CREDENTIALS / ADC
+  admin.initializeApp();
 }
 const db = admin.firestore();
 
@@ -61,22 +62,31 @@ app.use(morgan("dev"));
 // ----------------------------------------------------------------------------
 // Routes under /api
 // ----------------------------------------------------------------------------
+
+// Listings & general
 app.use("/api", listingsRouter);
+
+// Admin / users / host
 app.use("/api/admin", usersRouter);
 app.use("/api/host", hostRoutes);
+app.use("/api/admin", adminRoutes);
+
+// Webhooks namespace (for any extra webhook routes you already had)
 app.use("/api/webhooks", webhooksRouter);
+
+// KYC & onboarding
 app.use("/api", kycRoutes);
 app.use("/api", onboardingRoutes);
 
-// **Transactions/Bookings endpoints expected by the Admin UI**
-app.use("/api/bookings", bookingsRouter);      // GET list + PATCH status
-app.use("/api/transactions", bookingsRouter);  // alias used by some UIs
+// Bookings + transactions (admin dashboards, host reservations, guest views)
+app.use("/api/bookings", bookingsRouter); // includes GET /:id, PATCH /:id/status, POST /:id/refund, GET /:id/contact
+app.use("/api/transactions", bookingsRouter); // alias used by some UIs
+
+// ❌ REMOVED: this was crashing in ESM and is no longer needed
+// app.use("/api/bookings/contacts", require("./routes/bookingContacts"));
 
 // Health
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
-
-// Admin namespace (already mounted above)
-app.use("/api/admin", adminRoutes);
 
 // 404 (API)
 app.use("/api", (_req, res) => {
@@ -96,7 +106,11 @@ async function handlePaystackWebhook(req, res) {
   if (!secret) return res.status(500).send("PAYSTACK_SECRET_KEY missing");
 
   const signature = req.headers["x-paystack-signature"];
-  const computed = crypto.createHmac("sha512", secret).update(req.body).digest("hex");
+  const computed = crypto
+    .createHmac("sha512", secret)
+    .update(req.body)
+    .digest("hex");
+
   if (computed !== signature) return res.status(401).send("Invalid signature");
 
   let event;
@@ -163,7 +177,8 @@ async function handleFlutterwaveWebhook(req, res) {
   if (!expected) return res.status(500).send("FLW_VERIF_HASH missing");
 
   const verifyHash = req.headers["verif-hash"];
-  if (!verifyHash || verifyHash !== expected) return res.status(401).send("Invalid hash");
+  if (!verifyHash || verifyHash !== expected)
+    return res.status(401).send("Invalid hash");
 
   let payload;
   try {

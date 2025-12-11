@@ -1,17 +1,3 @@
 {
-  "payouts": [
-    {
-      "id": "po_1762111570767_94245",
-      "date": "2025-11-02T19:26:10.767Z",
-      "payeeEmail": "host@nesta.dev",
-      "payeeType": "host",
-      "amount": 0,
-      "currency": "NGN",
-      "status": "pending",
-      "ref": "bo_bk_1757250066504",
-      "note": "Auto-payout from booking confirmation",
-      "createdAt": "2025-11-02T19:26:10.767Z",
-      "updatedAt": "2025-11-02T19:26:10.767Z"
-    }
-  ]
+  "payouts": []
 }
