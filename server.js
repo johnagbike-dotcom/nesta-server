@@ -32,6 +32,7 @@ import crypto from "crypto";
 // App
 // ----------------------------------------------------------------------------
 const app = express();
+
 // CORS
 const allowedOrigins = [
   "http://localhost:3000",
@@ -41,15 +42,14 @@ const allowedOrigins = [
 app.use(
   cors({
     origin(origin, callback) {
-      // allow non-browser tools (Postman, curl – no origin header)
+      // allow REST tools / curl with no origin
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
-      // optional: log unexpected origins for debugging
-      console.warn("Blocked by CORS:", origin);
+      // not allowed
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
