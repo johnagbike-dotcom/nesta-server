@@ -13,7 +13,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import usersRouter from "./routes/users.js";
 import hostRoutes from "./routes/hostRoutes.js";
 import listingsRouter from "./routes/listings.js";
-import bookingsRouter from "./routes/bookings.js"; // includes /:id/contact
+import bookingsRouter from "./routes/bookings.js";
 import kycRoutes from "./routes/kycRoutes.js";
 import onboardingRoutes from "./routes/onboardingRoutes.js";
 
@@ -22,7 +22,7 @@ import admin from "firebase-admin";
 try {
   admin.app();
 } catch {
-  // Uses GOOGLE_APPLICATION_CREDENTIALS / ADC
+  // Uses GOOGLE_APPLICATION_CREDENTIALS / ADC (Render supports this)
   admin.initializeApp();
 }
 const db = admin.firestore();
@@ -33,41 +33,70 @@ const db = admin.firestore();
 const app = express();
 app.set("trust proxy", 1);
 
-// ---- CORS (manual, no cors package) ----
+// ----------------------------------------------------------------------------
+// CORS (manual, production-ready)
+// ----------------------------------------------------------------------------
+
+// Add ALL allowed frontends here
+// NOTE: Do NOT include trailing slashes.
 const allowedOrigins = new Set([
+  // Local dev
   "http://localhost:3000",
   "https://localhost:3000",
+
+  // Render frontend
   "https://nesta-client.onrender.com",
+
+  // Custom domains (frontend)
+  "https://nestanaija.com",
+  "https://www.nestanaija.com",
 ]);
+
+// Optional: allow preview/staging domains via env (comma-separated)
+if (process.env.ALLOWED_ORIGINS) {
+  for (const o of process.env.ALLOWED_ORIGINS.split(",").map(s => s.trim()).filter(Boolean)) {
+    allowedOrigins.add(o);
+  }
+}
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  if (origin && allowedOrigins.has(origin)) {
-    // reflect the calling origin, not localhost
-    res.header("Access-Control-Allow-Origin", origin);
-    res.header("Vary", "Origin");
+  // Allow non-browser requests (no Origin header), e.g. Render health checks, curl, webhooks
+  if (!origin) return next();
+
+  if (allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      // include Paystack/Flutterwave + Auth headers
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Paystack-Signature, verif-hash"
+    );
+  } else {
+    // If you prefer to hard-block unknown origins with a clear message:
+    // return res.status(403).json({ error: "CORS not allowed", origin });
+    // But we allow it to pass for server-to-server calls that don't need CORS.
   }
 
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-
   if (req.method === "OPTIONS") {
+    // CORS preflight
     return res.sendStatus(204);
   }
 
   next();
 });
 
+// ----------------------------------------------------------------------------
 // IMPORTANT: Webhooks need raw body for signature verification.
-// Attach raw-body parsers BEFORE global express.json():
+// Attach raw-body parsers BEFORE global express.json().
+// ----------------------------------------------------------------------------
+
 app.post(
   "/api/paystack/webhook",
   express.raw({ type: "application/json" }),
@@ -81,34 +110,41 @@ app.post(
 );
 
 // Normal JSON body parser for the rest of the API:
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(morgan("dev"));
 
 // ----------------------------------------------------------------------------
 // Routes under /api
 // ----------------------------------------------------------------------------
 
-// Listings & general
+// Prevent accidental shadowing / confusion: list these clearly
+
+// Public / listings
 app.use("/api", listingsRouter);
-
-// Admin / users / host
-app.use("/api/admin", usersRouter);
-app.use("/api/host", hostRoutes);
-app.use("/api/admin", adminRoutes);
-
-// Webhooks namespace (for any extra webhook routes you already had)
-app.use("/api/webhooks", webhooksRouter);
 
 // KYC & onboarding
 app.use("/api", kycRoutes);
 app.use("/api", onboardingRoutes);
 
-// Bookings + transactions (admin dashboards, host reservations, guest views)
-app.use("/api/bookings", bookingsRouter); // includes GET /:id, PATCH /:id/status, POST /:id/refund, GET /:id/contact
+// Admin / users
+app.use("/api/admin", usersRouter);
+app.use("/api/admin", adminRoutes);
+
+// Host
+app.use("/api/host", hostRoutes);
+
+// Bookings + transactions
+app.use("/api/bookings", bookingsRouter);
 app.use("/api/transactions", bookingsRouter); // alias used by some UIs
+
+// Webhooks namespace (extra webhooks if any)
+app.use("/api/webhooks", webhooksRouter);
 
 // Health
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Root (optional) - helps confirm api domain is live
+app.get("/", (_req, res) => res.status(200).send("Nesta API is running."));
 
 // 404 (API)
 app.use("/api", (_req, res) => {
@@ -269,5 +305,5 @@ async function handleFlutterwaveWebhook(req, res) {
 // ----------------------------------------------------------------------------
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`nesta-server listening on http://localhost:${PORT}`);
+  console.log(`nesta-server listening on port ${PORT}`);
 });
