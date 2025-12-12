@@ -1,4 +1,4 @@
-// server.js (ESM) — NestaNaija API (Production Ready)
+// server.js (ESM) — Nesta API + Paystack/Flutterwave webhooks (PROD-ready CORS)
 
 import "dotenv/config";
 import express from "express";
@@ -22,7 +22,7 @@ import admin from "firebase-admin";
 try {
   admin.app();
 } catch {
-  admin.initializeApp();
+  admin.initializeApp(); // Uses GOOGLE_APPLICATION_CREDENTIALS / ADC
 }
 const db = admin.firestore();
 
@@ -32,49 +32,47 @@ const db = admin.firestore();
 const app = express();
 app.set("trust proxy", 1);
 
-// ----------------------------------------------------------------------------
-// CORS — Production Grade (NO hardcoded localhost responses)
-// ----------------------------------------------------------------------------
-const ALLOWED_ORIGINS = new Set([
-  // Local dev
-  "http://localhost:3000",
-  "https://localhost:3000",
-
-  // Render (fallback)
-  "https://nesta-client.onrender.com",
-
-  // Production (Luxury Brand)
-  "https://nestanaija.com",
-  "https://www.nestanaija.com",
-]);
+// ---- CORS (production-grade) ----
+const allowedOrigins = new Set(
+  (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
+  // Allow requests with no Origin (server-to-server, curl, health checks)
+  if (!origin) return next();
+
+  // Allow known frontends only
+  if (allowedOrigins.has(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+    );
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    );
+
+    // Preflight
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    return next();
   }
 
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Origin, Content-Type, Accept, Authorization"
-  );
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
-  next();
+  // Block unknown origins (luxury brand = tight security)
+  if (req.method === "OPTIONS") return res.sendStatus(403);
+  return res.status(403).json({ message: "CORS: Origin not allowed" });
 });
 
 // ----------------------------------------------------------------------------
-// Webhooks (RAW body — MUST come before express.json)
+// IMPORTANT: Webhooks need raw body for signature verification.
+// Attach raw-body parsers BEFORE global express.json()
 // ----------------------------------------------------------------------------
 app.post(
   "/api/paystack/webhook",
@@ -88,46 +86,46 @@ app.post(
   handleFlutterwaveWebhook
 );
 
-// ----------------------------------------------------------------------------
-// Normal middleware
-// ----------------------------------------------------------------------------
+// Normal parsers/logging for the rest of the API:
 app.use(express.json());
 app.use(morgan("dev"));
 
 // ----------------------------------------------------------------------------
-// Routes
+// Routes under /api
 // ----------------------------------------------------------------------------
 app.use("/api", listingsRouter);
 
-app.use("/api/admin", usersRouter);
-app.use("/api/admin", adminRoutes);
+// Admin / users / host
+app.use("/api/admin", usersRouter);     // GET /api/admin/users
 app.use("/api/host", hostRoutes);
+app.use("/api/admin", adminRoutes);
 
+// Webhooks namespace (extra routes you may have)
 app.use("/api/webhooks", webhooksRouter);
 
+// KYC & onboarding
 app.use("/api", kycRoutes);
 app.use("/api", onboardingRoutes);
 
+// Bookings + transactions
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/transactions", bookingsRouter);
 
-// Health check
+// Health
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// API 404
+// 404 (API)
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-// ----------------------------------------------------------------------------
-// Static (safe to keep)
-// ----------------------------------------------------------------------------
+// Static (optional)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, "public")));
 
 // ----------------------------------------------------------------------------
-// Paystack Webhook
+// Webhook Handlers
 // ----------------------------------------------------------------------------
 async function handlePaystackWebhook(req, res) {
   const secret = process.env.PAYSTACK_SECRET_KEY;
@@ -151,30 +149,48 @@ async function handlePaystackWebhook(req, res) {
   if (event?.event !== "charge.success") return res.status(200).send("Ignored");
 
   const data = event.data || {};
+  const reference = data.reference;
   const meta = data.metadata || {};
-
   const bookingId = meta.bookingId || meta.booking_id || null;
-  const amountN = Math.round(Number(data.amount || 0) / 100);
+  const listingId = meta.listingId || meta.listing_id || null;
+  const email = data?.customer?.email || meta.email;
+  const amountN = Math.round(Number(data.amount || 0) / 100); // kobo → Naira
 
   try {
-    const ref = bookingId
-      ? db.collection("bookings").doc(bookingId)
-      : db.collection("bookings").doc();
-
-    await ref.set(
-      {
+    if (!bookingId) {
+      const ref = db.collection("bookings").doc();
+      await ref.set({
         id: ref.id,
+        listingId: listingId || null,
+        email: email || "guest@example.com",
+        userId: meta.userId || null,
+        title: meta.title || "",
+        guests: Number(meta.guests || 1),
+        nights: Number(meta.nights || 0),
+        amountN,
         provider: "paystack",
         gateway: "success",
         status: "confirmed",
-        reference: data.reference,
-        amountN,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        reference,
+        checkIn: meta.checkIn || null,
+        checkOut: meta.checkOut || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      const ref = db.collection("bookings").doc(bookingId);
+      await ref.set(
+        {
+          id: bookingId,
+          provider: "paystack",
+          gateway: "success",
+          status: "confirmed",
+          reference,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
     return res.status(200).send("ok");
   } catch (e) {
     console.error("Paystack webhook error:", e);
@@ -182,9 +198,6 @@ async function handlePaystackWebhook(req, res) {
   }
 }
 
-// ----------------------------------------------------------------------------
-// Flutterwave Webhook
-// ----------------------------------------------------------------------------
 async function handleFlutterwaveWebhook(req, res) {
   const expected = process.env.FLW_VERIF_HASH;
   if (!expected) return res.status(500).send("FLW_VERIF_HASH missing");
@@ -200,26 +213,54 @@ async function handleFlutterwaveWebhook(req, res) {
     return res.status(400).send("Bad JSON");
   }
 
-  const data = payload?.data || {};
+  const evt = payload?.event || payload?.event_type || "";
+  const data = payload?.data || payload;
+  if (!/charge\.completed/i.test(evt)) return res.status(200).send("Ignored");
   if (String(data?.status).toLowerCase() !== "successful")
-    return res.status(200).send("Ignored");
+    return res.status(200).send("Non-success");
+
+  const txId = data?.id?.toString?.() || data?.tx_ref || data?.flw_ref || null;
+  const meta = data?.meta || data?.meta_data || {};
+  const bookingId = meta.bookingId || meta.booking_id || null;
+  const listingId = meta.listingId || meta.listing_id || null;
+  const email = data?.customer?.email || meta.email;
+  const amountN = Math.round(Number(data?.amount || 0));
 
   try {
-    const ref = db.collection("bookings").doc(
-      data?.meta?.bookingId || undefined
-    );
-
-    await ref.set(
-      {
+    if (!bookingId) {
+      const ref = db.collection("bookings").doc();
+      await ref.set({
+        id: ref.id,
+        listingId: listingId || null,
+        email: email || "guest@example.com",
+        userId: meta.userId || null,
+        title: meta.title || "",
+        guests: Number(meta.guests || 1),
+        nights: Number(meta.nights || 0),
+        amountN,
         provider: "flutterwave",
         gateway: "success",
         status: "confirmed",
-        reference: data.id?.toString(),
+        reference: txId,
+        checkIn: meta.checkIn || null,
+        checkOut: meta.checkOut || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-
+      });
+    } else {
+      const ref = db.collection("bookings").doc(bookingId);
+      await ref.set(
+        {
+          id: bookingId,
+          provider: "flutterwave",
+          gateway: "success",
+          status: "confirmed",
+          reference: txId,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
     return res.status(200).send("ok");
   } catch (e) {
     console.error("Flutterwave webhook error:", e);
@@ -232,5 +273,5 @@ async function handleFlutterwaveWebhook(req, res) {
 // ----------------------------------------------------------------------------
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`NestaNaija API running on port ${PORT}`);
+  console.log(`nesta-server listening on http://localhost:${PORT}`);
 });
