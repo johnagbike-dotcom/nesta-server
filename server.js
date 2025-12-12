@@ -34,7 +34,7 @@ app.set("trust proxy", 1);
 
 // ---- CORS (production-grade) ----
 const allowedOrigins = new Set(
-  (process.env.CORS_ORIGINS || "")
+  (process.env.ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
